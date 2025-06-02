@@ -4,7 +4,7 @@ module.exports = [
     name: 'John Doe',
     username: 'jdoe42',
     password: '12345',
-    profilePicture: '', // Base64 encoded image or URL
+    profilePicture: './default.png',
     pronouns: 'he/him',
     description: 'Pokemon TCG enthusiast and collector since 1999.',
     createdAt: new Date(Date.now() - 30 * 86400000).toISOString() // 30 days ago
@@ -13,7 +13,7 @@ module.exports = [
     name: 'Jane Doe',
     username: 'janedoe',
     password: '919191',
-    profilePicture: '',
+    profilePicture: './default.png',
     pronouns: 'she/her',
     description: 'Competitive Pokemon TCG player with a focus on Electric-type decks.',
     createdAt: new Date(Date.now() - 15 * 86400000).toISOString() // 15 days ago

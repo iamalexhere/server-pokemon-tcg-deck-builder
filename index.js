@@ -2,14 +2,76 @@ const crypto = require('node:crypto');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
 
 const users = require('./data.js');
 let decks = require('./decks.js');
 
+// Create uploads directory for profile pictures if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 const app = express();
+
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir);
+}
+
+// Logger middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${req.method} ${req.url} - IP: ${req.ip}\n`;
+  
+  // Log to console
+  console.log(logMessage.trim());
+  
+  // Log to file
+  const logFile = path.join(logsDir, `${new Date().toISOString().split('T')[0]}.log`);
+  fs.appendFileSync(logFile, logMessage);
+  
+  // Log request body for non-GET requests (excluding sensitive data)
+  if (req.method !== 'GET' && req.body) {
+    const safeBody = { ...req.body };
+    if (safeBody.password) safeBody.password = '[REDACTED]';
+    
+    const bodyLog = `[${timestamp}] Request Body: ${JSON.stringify(safeBody)}\n`;
+    console.log(bodyLog.trim());
+    fs.appendFileSync(logFile, bodyLog);
+  }
+  
+  // Capture response data
+  const originalSend = res.send;
+  res.send = function(data) {
+    const responseLog = `[${timestamp}] Response: ${res.statusCode} ${data ? data.substring(0, 200) : ''}${data && data.length > 200 ? '...' : ''}\n`;
+    console.log(responseLog.trim());
+    fs.appendFileSync(logFile, responseLog);
+    originalSend.apply(res, arguments);
+  };
+  
+  next();
+});
 
 app.use(cors())
 app.use(bodyParser.json({ limit: '10mb' })); // Increased limit for profile pictures
+
+// Serve static files from the root directory (for default.png)
+app.use(express.static(__dirname));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Copy default profile picture to uploads if it doesn't exist there
+const defaultPicSrc = path.join(__dirname, 'default.png');
+const defaultPicDest = path.join(uploadsDir, 'default.png');
+if (fs.existsSync(defaultPicSrc) && !fs.existsSync(defaultPicDest)) {
+  fs.copyFileSync(defaultPicSrc, defaultPicDest);
+  console.log('Copied default profile picture to uploads directory');
+}
 
 const secret = 'thisisasecret';
 
@@ -169,11 +231,22 @@ app.get('/api/profile', (req, res) => {
   
   const user = users[userIndex];
   
+  // Format profile picture URL if it's a relative path
+  let profilePicture = user.profilePicture;
+  
+  // If profilePicture starts with ./ or is just 'default.png', convert to absolute URL
+  if (profilePicture && (profilePicture.startsWith('./') || profilePicture === 'default.png')) {
+    // Remove ./ if present
+    const pictureName = profilePicture.replace('./', '');
+    profilePicture = `http://localhost:3001/${pictureName}`;
+    console.log(`Converted profile picture path to: ${profilePicture}`);
+  }
+  
   // Return user profile data (excluding password)
   res.status(200).json({
     username: user.username,
     name: user.name,
-    profilePicture: user.profilePicture,
+    profilePicture: profilePicture,
     pronouns: user.pronouns,
     description: user.description
   });
@@ -184,39 +257,73 @@ app.put('/api/profile', (req, res) => {
   const userData = verify(req.headers.authorization);
   const { username, profilePicture, pronouns, description } = req.body;
   
+  console.log(`Profile update request for user: ${userData.username}`);
+  if (profilePicture) {
+    console.log(`Profile picture included: ${profilePicture.substring(0, 30)}...`);
+  }
+  
   // Find the user by username
   const userIndex = users.findIndex(u => u.username === userData.username);
   if (userIndex === -1) {
+    console.error(`User not found: ${userData.username}`);
     return res.status(404).json({ message: 'User not found' });
   }
   
   const user = users[userIndex];
+  console.log(`Found user at index ${userIndex}: ${user.username}`);
   
-  // Update user data if provided
-  if (username !== undefined) {
-    // Check if username is valid
-    if (typeof username !== 'string' || username.length < 3) {
-      return res.status(400).json({ message: 'Username must be at least 3 characters' });
-    }
-    
-    // Check if new username is already taken by another user
-    const usernameExists = users.some((u, index) => u.username === username && index !== userIndex);
+  // Update user data
+  if (username !== undefined && username !== user.username) {
+    // Check if new username is already taken
+    const usernameExists = users.some((u, idx) => idx !== userIndex && u.username === username);
     if (usernameExists) {
+      console.error(`Username already exists: ${username}`);
       return res.status(400).json({ message: 'Username already exists' });
     }
-    
+    console.log(`Updating username from ${user.username} to ${username}`);
     user.username = username;
   }
   
   if (profilePicture !== undefined) {
-    user.profilePicture = profilePicture;
+    console.log(`Updating profile picture for ${user.username}`);
+    
+    // Handle base64 image data
+    if (profilePicture && profilePicture.startsWith('data:image')) {
+      try {
+        // Extract the base64 data and file type
+        const matches = profilePicture.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        
+        if (matches && matches.length === 3) {
+          const fileType = matches[1].split('/')[1];
+          const base64Data = matches[2];
+          const fileName = `${user.username}_${Date.now()}.${fileType}`;
+          const filePath = path.join(uploadsDir, fileName);
+          
+          // Write the file to disk
+          fs.writeFileSync(filePath, base64Data, { encoding: 'base64' });
+          
+          // Update user profile with the file URL
+          user.profilePicture = `http://localhost:3001/uploads/${fileName}`;
+          console.log(`Saved profile picture to: ${filePath}`);
+        } else {
+          console.error('Invalid image data format');
+        }
+      } catch (error) {
+        console.error('Error saving profile picture:', error);
+      }
+    } else {
+      // If it's a URL or path, save it as is
+      user.profilePicture = profilePicture;
+    }
   }
   
   if (pronouns !== undefined) {
+    console.log(`Updating pronouns for ${user.username}: ${pronouns}`);
     user.pronouns = pronouns;
   }
   
   if (description !== undefined) {
+    console.log(`Updating description for ${user.username}`);
     user.description = description;
   }
   
@@ -568,6 +675,8 @@ app.listen(3001, (err) => {
   if(err) {
     console.error(`Error: ${err.message}`);
   } else {
-    console.log('Listening...');
+    console.log('Server started on port 3001');
+    console.log(`Server time: ${new Date().toISOString()}`);
+    console.log(`Log files location: ${logsDir}`);
   }
 });
