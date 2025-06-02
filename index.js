@@ -340,6 +340,52 @@ app.put('/api/profile', (req, res) => {
   });
 });
 
+// Change Password endpoint
+app.put('/api/profile/password', (req, res) => {
+  const userData = verify(req.headers.authorization);
+  const { currentPassword, newPassword } = req.body;
+  
+  console.log(`Password change request for user: ${userData.username}`);
+  
+  // Validate request body
+  if (!currentPassword || typeof currentPassword !== 'string') {
+    console.error('Current password is required');
+    return res.status(400).json({ message: 'Current password is required' });
+  }
+  
+  if (!newPassword || typeof newPassword !== 'string') {
+    console.error('New password is required');
+    return res.status(400).json({ message: 'New password is required' });
+  }
+  
+  if (newPassword.length < 4) {
+    console.error('New password must be at least 4 characters');
+    return res.status(400).json({ message: 'New password must be at least 4 characters' });
+  }
+  
+  // Find the user
+  const userIndex = users.findIndex(u => u.username === userData.username);
+  if (userIndex === -1) {
+    console.error(`User not found: ${userData.username}`);
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  const user = users[userIndex];
+  
+  // Verify current password
+  if (user.password !== currentPassword) {
+    console.error('Current password is incorrect');
+    return res.status(400).json({ message: 'Current password is incorrect' });
+  }
+  
+  // Update password
+  user.password = newPassword;
+  console.log(`Password updated for user: ${user.username}`);
+  
+  // Return success message
+  res.status(200).json({ message: 'Password updated successfully' });
+});
+
 // Get Recent Decks endpoint
 app.get('/api/decks/recent', (req, res) => {
   const userData = verify(req.headers.authorization);
