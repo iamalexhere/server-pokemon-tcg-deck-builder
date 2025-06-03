@@ -530,6 +530,7 @@ app.get('/api/decks/:id', (req, res) => {
   // Use req.user from middleware instead of verifying token again
   const userData = req.user;
   const deckId = parseInt(req.params.id);
+  const includeCardDetails = req.query.includeCardDetails === 'true';
   
   // Find user index
   const userIndex = users.findIndex(u => u.username === userData.username);
@@ -543,13 +544,32 @@ app.get('/api/decks/:id', (req, res) => {
     return res.status(404).json({ message: 'Deck not found' });
   }
   
-  res.status(200).json({
+  // Prepare response
+  const response = {
     id: deck.id,
     name: deck.name,
     imageUrl: deck.imageUrl,
-    cards: deck.cards,
-    favorite: deck.favorite
-  });
+    favorite: deck.favorite,
+    lastModified: deck.lastModified
+  };
+  
+  // Include card details if requested
+  if (includeCardDetails) {
+    response.cards = deck.cards.map(deckCard => {
+      const cardData = cards.find(c => c.id === deckCard.id);
+      return {
+        ...deckCard,
+        details: cardData || { id: deckCard.id, name: 'Unknown Card', missing: true }
+      };
+    });
+  } else {
+    response.cards = deck.cards;
+  }
+  
+  // Calculate total card count
+  response.cardCount = deck.cards.reduce((total, card) => total + card.count, 0);
+  
+  res.status(200).json(response);
 });
 
 // Create Deck endpoint
@@ -615,17 +635,63 @@ app.put('/api/decks/:id', (req, res) => {
     return res.status(404).json({ message: 'Deck not found' });
   }
   
-  // Update deck data
+  // Update deck properties
   if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ message: 'Deck name must be a non-empty string' });
+    }
     decks[deckIndex].name = name;
   }
   
   if (imageUrl !== undefined) {
+    if (typeof imageUrl !== 'string') {
+      return res.status(400).json({ message: 'Image URL must be a string' });
+    }
     decks[deckIndex].imageUrl = imageUrl;
   }
   
   if (cards !== undefined) {
-    decks[deckIndex].cards = cards;
+    // Validate cards array
+    if (!Array.isArray(cards)) {
+      return res.status(400).json({ message: 'Cards must be an array' });
+    }
+    
+    // Validate each card in the array
+    const invalidCards = [];
+    const validCards = [];
+    
+    for (const card of cards) {
+      // Check card format
+      if (!card.id || typeof card.id !== 'string' || !card.count || typeof card.count !== 'number') {
+        invalidCards.push(card);
+        continue;
+      }
+      
+      // Check card count range
+      if (card.count < 1 || card.count > 4) {
+        invalidCards.push(card);
+        continue;
+      }
+      
+      // Verify card exists in our database
+      const cardExists = cards.some(c => c.id === card.id);
+      if (!cardExists) {
+        invalidCards.push(card);
+        continue;
+      }
+      
+      validCards.push(card);
+    }
+    
+    // If there are invalid cards, return an error
+    if (invalidCards.length > 0) {
+      return res.status(400).json({
+        message: 'Some cards are invalid',
+        invalidCards
+      });
+    }
+    
+    decks[deckIndex].cards = validCards;
   }
   
   // Update last modified timestamp
@@ -640,7 +706,8 @@ app.put('/api/decks/:id', (req, res) => {
       id: decks[deckIndex].id,
       name: decks[deckIndex].name,
       imageUrl: decks[deckIndex].imageUrl,
-      cardCount
+      cardCount,
+      lastModified: decks[deckIndex].lastModified
     }
   });
 });
@@ -753,10 +820,159 @@ app.post('/api/decks/:id/favorite', (req, res) => {
   
   // Update favorite status
   decks[deckIndex].favorite = favorite;
+  decks[deckIndex].lastModified = new Date().toISOString();
   
   res.status(200).json({
     message: `Deck ${favorite ? 'added to' : 'removed from'} favorites`,
     favorite
+  });
+});
+
+// Add Card to Deck endpoint
+app.post('/api/decks/:id/cards', (req, res) => {
+  // Use req.user from middleware instead of verifying token again
+  const userData = req.user;
+  const deckId = parseInt(req.params.id);
+  const { cardId, count = 1 } = req.body;
+  
+  // Validate input
+  if (!cardId || typeof cardId !== 'string') {
+    return res.status(400).json({ message: 'Card ID is required' });
+  }
+  
+  if (count < 1 || count > 4) {
+    return res.status(400).json({ message: 'Card count must be between 1 and 4' });
+  }
+  
+  // Find user index
+  const userIndex = users.findIndex(u => u.username === userData.username);
+  if (userIndex === -1) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  // Find deck index
+  const deckIndex = decks.findIndex(d => d.id === deckId && d.userId === userIndex);
+  if (deckIndex === -1) {
+    return res.status(404).json({ message: 'Deck not found' });
+  }
+  
+  // Verify card exists in our database
+  const cardExists = cards.some(c => c.id === cardId);
+  if (!cardExists) {
+    return res.status(404).json({ message: 'Card not found in database' });
+  }
+  
+  // Check if card already exists in deck
+  const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
+  
+  if (cardIndex !== -1) {
+    // Update existing card count
+    decks[deckIndex].cards[cardIndex].count = count;
+  } else {
+    // Add new card to deck
+    decks[deckIndex].cards.push({ id: cardId, count });
+  }
+  
+  // Update last modified timestamp
+  decks[deckIndex].lastModified = new Date().toISOString();
+  
+  // Get card details
+  const cardDetails = cards.find(c => c.id === cardId);
+  
+  res.status(200).json({
+    message: 'Card added to deck',
+    card: {
+      id: cardId,
+      count,
+      details: cardDetails
+    }
+  });
+});
+
+// Remove Card from Deck endpoint
+app.delete('/api/decks/:id/cards/:cardId', (req, res) => {
+  // Use req.user from middleware instead of verifying token again
+  const userData = req.user;
+  const deckId = parseInt(req.params.id);
+  const cardId = req.params.cardId;
+  
+  // Find user index
+  const userIndex = users.findIndex(u => u.username === userData.username);
+  if (userIndex === -1) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  // Find deck index
+  const deckIndex = decks.findIndex(d => d.id === deckId && d.userId === userIndex);
+  if (deckIndex === -1) {
+    return res.status(404).json({ message: 'Deck not found' });
+  }
+  
+  // Check if card exists in deck
+  const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
+  if (cardIndex === -1) {
+    return res.status(404).json({ message: 'Card not found in deck' });
+  }
+  
+  // Remove card from deck
+  decks[deckIndex].cards.splice(cardIndex, 1);
+  
+  // Update last modified timestamp
+  decks[deckIndex].lastModified = new Date().toISOString();
+  
+  res.status(200).json({
+    message: 'Card removed from deck',
+    cardId
+  });
+});
+
+// Update Card Count in Deck endpoint
+app.put('/api/decks/:id/cards/:cardId', (req, res) => {
+  // Use req.user from middleware instead of verifying token again
+  const userData = req.user;
+  const deckId = parseInt(req.params.id);
+  const cardId = req.params.cardId;
+  const { count } = req.body;
+  
+  // Validate input
+  if (count === undefined || count < 1 || count > 4) {
+    return res.status(400).json({ message: 'Card count must be between 1 and 4' });
+  }
+  
+  // Find user index
+  const userIndex = users.findIndex(u => u.username === userData.username);
+  if (userIndex === -1) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  
+  // Find deck index
+  const deckIndex = decks.findIndex(d => d.id === deckId && d.userId === userIndex);
+  if (deckIndex === -1) {
+    return res.status(404).json({ message: 'Deck not found' });
+  }
+  
+  // Check if card exists in deck
+  const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
+  if (cardIndex === -1) {
+    return res.status(404).json({ message: 'Card not found in deck' });
+  }
+  
+  // Update card count
+  decks[deckIndex].cards[cardIndex].count = count;
+  
+  // Update last modified timestamp
+  decks[deckIndex].lastModified = new Date().toISOString();
+  
+  // Get card details
+  const cardDetails = cards.find(c => c.id === cardId);
+  
+  res.status(200).json({
+    message: 'Card count updated',
+    card: {
+      id: cardId,
+      count,
+      details: cardDetails
+    }
   });
 });
 
