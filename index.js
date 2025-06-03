@@ -102,8 +102,25 @@ function sign(data) {
   return `${plain}.${sig}`
 }
 
+/**
+ * Extract token from Authorization header
+ * Handles both 'Bearer token' format and raw token format
+ */
+function extractToken(authHeader) {
+  if (!authHeader) return null;
+  return authHeader.startsWith('Bearer ') 
+    ? authHeader.substring(7) // Remove 'Bearer ' prefix
+    : authHeader; // Use as-is if no Bearer prefix
+}
+
 function verify(token) {
-  const parts = token.split('.');
+  // Handle null or undefined token
+  if (!token) return null;
+  
+  // Handle Bearer token format
+  const actualToken = extractToken(token);
+  
+  const parts = actualToken.split('.');
   if(parts.length !== 2) return null;
 
   const plain = parts[0];
@@ -207,7 +224,9 @@ app.use((req, res, next) => {
       message: 'go login first, buddy!'
     });
   } else {
-    const user = verify(req.headers.authorization);
+    // Use the extractToken helper function
+    const token = extractToken(req.headers.authorization);
+    const user = verify(token);
     if(user === null) {
       res.status(403).json({
         message: 'go login first, buddy!'
