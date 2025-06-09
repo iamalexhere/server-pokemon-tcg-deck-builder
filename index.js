@@ -656,23 +656,20 @@ app.post('/api/decks', (req, res) => {
   const newId = decks.length > 0 ? Math.max(...decks.map(d => d.id)) + 1 : 1;
   
   // Create new deck
-  let initialImageUrl = imageUrl; // Use provided imageUrl if any, otherwise try to set one
-  if (!initialImageUrl && cards.length > 0) {
-    const randomCard = cards[Math.floor(Math.random() * cards.length)];
-    if (randomCard && randomCard.images && randomCard.images.small) {
-      initialImageUrl = randomCard.images.small;
-    }
-  }
-
   const newDeck = {
     id: newId,
     userId: userIndex,
     name,
-    imageUrl: initialImageUrl,
+    imageUrl: imageUrl,
     cards: [],
     favorite: false,
     lastModified: new Date().toISOString()
   };
+  
+  // If no imageUrl was provided, set one (will be random for a new empty deck)
+  if (!newDeck.imageUrl) {
+    updateDeckImageUrl(newDeck, cards);
+  }
   
   decks.push(newDeck);
   saveDataToFile(decksFilePath, decks);
@@ -897,6 +894,7 @@ app.post('/api/decks/:id/favorite', (req, res) => {
   // Update favorite status
   decks[deckIndex].favorite = favorite;
   decks[deckIndex].lastModified = new Date().toISOString();
+  saveDataToFile(decksFilePath, decks);
   
   res.status(200).json({
     message: `Deck ${favorite ? 'added to' : 'removed from'} favorites`,
@@ -949,8 +947,12 @@ app.post('/api/decks/:id/cards', (req, res) => {
     decks[deckIndex].cards.push({ id: cardId, count });
   }
   
+  // Update the deck image based on the new card list
+  updateDeckImageUrl(decks[deckIndex], cards);
+
   // Update last modified timestamp
   decks[deckIndex].lastModified = new Date().toISOString();
+  saveDataToFile(decksFilePath, decks);
   
   // Get card details
   const cardDetails = cards.find(c => c.id === cardId);
