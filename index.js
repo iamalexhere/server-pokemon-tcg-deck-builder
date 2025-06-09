@@ -5,6 +5,21 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 
+// Helper function to save data to a .js file
+function saveDataToFile(filePath, data) {
+  const fileContent = `module.exports = ${JSON.stringify(data, null, 2)};\n`;
+  try {
+    fs.writeFileSync(filePath, fileContent, 'utf8');
+    console.log(`Data saved to ${filePath}`);
+  } catch (err) {
+    console.error(`Error writing to ${filePath}:`, err);
+  }
+}
+
+// Define file paths for data
+const usersFilePath = path.join(__dirname, 'data.js');
+const decksFilePath = path.join(__dirname, 'decks.js');
+
 const users = require('./data.js');
 let decks = require('./decks.js');
 const cards = require('./cards.js');
@@ -211,6 +226,7 @@ app.post('/api/register', (req, res) => {
   };
 
   users.push(newUser);
+  saveDataToFile(usersFilePath, users);
 
   res.status(201).json({
     message: 'User registered successfully',
@@ -391,6 +407,9 @@ app.put('/api/profile', (req, res) => {
     responseData.token = sign(user);
   }
   
+  // Save updated user data to file
+  saveDataToFile(usersFilePath, users);
+
   // Return updated user data
   res.status(200).json(responseData);
 });
@@ -437,6 +456,9 @@ app.put('/api/profile/password', (req, res) => {
   // Update password
   user.password = newPassword;
   console.log(`Password updated for user: ${user.username}`);
+  
+  // Save updated user data to file
+  saveDataToFile(usersFilePath, users);
   
   // Return success message
   res.status(200).json({ message: 'Password updated successfully' });
@@ -591,6 +613,28 @@ app.get('/api/decks/:id', (req, res) => {
   res.status(200).json(response);
 });
 
+// Helper function to update deck image URL based on its first card
+function updateDeckImageUrl(deck, allCards) {
+  if (deck.cards && deck.cards.length > 0) {
+    const firstCardId = deck.cards[0].id;
+    const firstCardDetails = allCards.find(c => c.id === firstCardId);
+    if (firstCardDetails && firstCardDetails.images && firstCardDetails.images.small) {
+      deck.imageUrl = firstCardDetails.images.small;
+    } else {
+      // Optional: set to a default if first card has no image or not found
+      // deck.imageUrl = ''; 
+    }
+  } else {
+    // Optional: if deck has no cards, pick a random image from all cards
+    if (allCards.length > 0) {
+      const randomCard = allCards[Math.floor(Math.random() * allCards.length)];
+      if (randomCard && randomCard.images && randomCard.images.small) {
+        deck.imageUrl = randomCard.images.small;
+      }
+    }
+  }
+}
+
 // Create Deck endpoint
 app.post('/api/decks', (req, res) => {
   // Use req.user from middleware instead of verifying token again
@@ -612,17 +656,26 @@ app.post('/api/decks', (req, res) => {
   const newId = decks.length > 0 ? Math.max(...decks.map(d => d.id)) + 1 : 1;
   
   // Create new deck
+  let initialImageUrl = imageUrl; // Use provided imageUrl if any, otherwise try to set one
+  if (!initialImageUrl && cards.length > 0) {
+    const randomCard = cards[Math.floor(Math.random() * cards.length)];
+    if (randomCard && randomCard.images && randomCard.images.small) {
+      initialImageUrl = randomCard.images.small;
+    }
+  }
+
   const newDeck = {
     id: newId,
     userId: userIndex,
     name,
-    imageUrl,
+    imageUrl: initialImageUrl,
     cards: [],
     favorite: false,
     lastModified: new Date().toISOString()
   };
   
   decks.push(newDeck);
+  saveDataToFile(decksFilePath, decks);
   
   res.status(201).json({
     message: 'Deck created successfully',
@@ -711,6 +764,7 @@ app.put('/api/decks/:id', (req, res) => {
     }
     
     decks[deckIndex].cards = validCards;
+    updateDeckImageUrl(decks[deckIndex], cards);
   }
   
   // Update last modified timestamp
@@ -718,6 +772,8 @@ app.put('/api/decks/:id', (req, res) => {
   
   // Calculate card count
   const cardCount = decks[deckIndex].cards.reduce((total, card) => total + card.count, 0);
+  
+  saveDataToFile(decksFilePath, decks);
   
   res.status(200).json({
     message: 'Deck updated successfully',
@@ -751,6 +807,7 @@ app.delete('/api/decks/:id', (req, res) => {
   
   // Remove deck
   decks.splice(deckIndex, 1);
+  saveDataToFile(decksFilePath, decks);
   
   res.status(200).json({
     message: 'Deck deleted successfully'
@@ -935,9 +992,11 @@ app.delete('/api/decks/:id/cards/:cardId', (req, res) => {
   
   // Remove card from deck
   decks[deckIndex].cards.splice(cardIndex, 1);
+  updateDeckImageUrl(decks[deckIndex], cards);
   
   // Update last modified timestamp
   decks[deckIndex].lastModified = new Date().toISOString();
+  saveDataToFile(decksFilePath, decks);
   
   res.status(200).json({
     message: 'Card removed from deck',
@@ -981,6 +1040,7 @@ app.put('/api/decks/:id/cards/:cardId', (req, res) => {
   
   // Update last modified timestamp
   decks[deckIndex].lastModified = new Date().toISOString();
+  saveDataToFile(decksFilePath, decks);
   
   // Get card details
   const cardDetails = cards.find(c => c.id === cardId);
