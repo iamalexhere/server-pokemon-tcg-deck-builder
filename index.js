@@ -234,6 +234,85 @@ app.post('/api/register', (req, res) => {
   });
 });
 
+// Get all cards endpoint (with pagination)
+app.get('/api/cards', (req, res) => {
+  res.status(200).json({
+    data: cards,
+    count: cards.length
+  });
+});
+
+// Get cards by set endpoint
+app.get('/api/cards/set/:setId', (req, res) => {
+  const setId = req.params.setId.toLowerCase();
+  
+  // Filter cards by set ID
+  const setCards = cards.filter(card => 
+    card.set && card.set.id && card.set.id.toLowerCase() === setId
+  );
+  
+  res.status(200).json({
+    data: setCards,
+    count: setCards.length,
+    set: setId
+  });
+});
+
+// Search cards endpoint
+app.get('/api/cards/search', (req, res) => {
+  const { name, type, supertype, rarity } = req.query;
+  
+  // Filter cards based on search criteria
+  let filteredCards = [...cards];
+  
+  if (name) {
+    const searchName = name.toLowerCase();
+    filteredCards = filteredCards.filter(card => 
+      card.name && card.name.toLowerCase().includes(searchName)
+    );
+  }
+  
+  if (type) {
+    const searchType = type.toLowerCase();
+    filteredCards = filteredCards.filter(card => 
+      card.types && card.types.some(t => t.toLowerCase().includes(searchType))
+    );
+  }
+  
+  if (supertype) {
+    const searchSupertype = supertype.toLowerCase();
+    filteredCards = filteredCards.filter(card => 
+      card.supertype && card.supertype.toLowerCase().includes(searchSupertype)
+    );
+  }
+  
+  if (rarity) {
+    const searchRarity = rarity.toLowerCase();
+    filteredCards = filteredCards.filter(card => 
+      card.rarity && card.rarity.toLowerCase().includes(searchRarity)
+    );
+  }
+  
+  res.status(200).json({
+    data: filteredCards,
+    count: filteredCards.length
+  });
+});
+
+// Get card by ID endpoint
+app.get('/api/cards/:id', (req, res) => {
+  const cardId = req.params.id;
+  
+  // Find card by ID
+  const card = cards.find(c => c.id === cardId);
+  
+  if (!card) {
+    return res.status(404).json({ message: 'Card not found' });
+  }
+  
+  res.status(200).json({ data: card });
+});
+
 app.use((req, res, next) => {
   if(!req.headers.authorization) {
     res.status(403).json({
@@ -532,37 +611,25 @@ app.get('/api/decks', (req, res) => {
     return res.status(404).json({ message: 'User not found' });
   }
   
-  // Get query parameters for pagination and search
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 9;
   const search = req.query.search || '';
-  
+
   // Filter decks by user and search term
   const userDecks = decks
     .filter(deck => {
       return deck.userId === userIndex && 
              (search === '' || deck.name.toLowerCase().includes(search.toLowerCase()));
     });
-  
-  // Calculate pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const totalPages = Math.ceil(userDecks.length / limit);
-  
-  // Get paginated decks
-  const paginatedDecks = userDecks.slice(startIndex, endIndex);
-  
+
   // Format decks for response
-  const formattedDecks = paginatedDecks.map(deck => ({
+  const formattedDecks = userDecks.map(deck => ({
     id: deck.id,
     name: deck.name,
     imageUrl: deck.imageUrl,
     cardCount: deck.cards.reduce((total, card) => total + card.count, 0)
   }));
-  
+
   res.status(200).json({
-    decks: formattedDecks,
-    totalPages
+    decks: formattedDecks
   });
 });
 
@@ -1057,115 +1124,7 @@ app.put('/api/decks/:id/cards/:cardId', (req, res) => {
   });
 });
 
-// Get all cards endpoint (with pagination)
-app.get('/api/cards', (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.pageSize) || 20;
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  
-  // Return paginated results
-  const paginatedCards = cards.slice(startIndex, endIndex);
-  
-  res.status(200).json({
-    data: paginatedCards,
-    page,
-    pageSize,
-    count: cards.length,
-    totalPages: Math.ceil(cards.length / pageSize)
-  });
-});
 
-// Get cards by set endpoint
-app.get('/api/cards/set/:setId', (req, res) => {
-  const setId = req.params.setId.toLowerCase();
-  const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.pageSize) || 20;
-  
-  // Filter cards by set ID
-  const setCards = cards.filter(card => 
-    card.set && card.set.id && card.set.id.toLowerCase() === setId
-  );
-  
-  // Apply pagination
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedCards = setCards.slice(startIndex, endIndex);
-  
-  res.status(200).json({
-    data: paginatedCards,
-    page,
-    pageSize,
-    count: setCards.length,
-    totalPages: Math.ceil(setCards.length / pageSize),
-    set: setId
-  });
-});
-
-// Search cards endpoint
-app.get('/api/cards/search', (req, res) => {
-  const { name, type, supertype, rarity, page = 1, pageSize = 20 } = req.query;
-  const pageNum = parseInt(page);
-  const size = parseInt(pageSize);
-  
-  // Filter cards based on search criteria
-  let filteredCards = [...cards];
-  
-  if (name) {
-    const searchName = name.toLowerCase();
-    filteredCards = filteredCards.filter(card => 
-      card.name && card.name.toLowerCase().includes(searchName)
-    );
-  }
-  
-  if (type) {
-    const searchType = type.toLowerCase();
-    filteredCards = filteredCards.filter(card => 
-      card.types && card.types.some(t => t.toLowerCase().includes(searchType))
-    );
-  }
-  
-  if (supertype) {
-    const searchSupertype = supertype.toLowerCase();
-    filteredCards = filteredCards.filter(card => 
-      card.supertype && card.supertype.toLowerCase().includes(searchSupertype)
-    );
-  }
-  
-  if (rarity) {
-    const searchRarity = rarity.toLowerCase();
-    filteredCards = filteredCards.filter(card => 
-      card.rarity && card.rarity.toLowerCase().includes(searchRarity)
-    );
-  }
-  
-  // Apply pagination
-  const startIndex = (pageNum - 1) * size;
-  const endIndex = startIndex + size;
-  const paginatedCards = filteredCards.slice(startIndex, endIndex);
-  
-  res.status(200).json({
-    data: paginatedCards,
-    page: pageNum,
-    pageSize: size,
-    count: filteredCards.length,
-    totalPages: Math.ceil(filteredCards.length / size)
-  });
-});
-
-// Get card by ID endpoint
-app.get('/api/cards/:id', (req, res) => {
-  const cardId = req.params.id;
-  
-  // Find card by ID
-  const card = cards.find(c => c.id === cardId);
-  
-  if (!card) {
-    return res.status(404).json({ message: 'Card not found' });
-  }
-  
-  res.status(200).json({ data: card });
-});
 
 app.listen(3001, (err) => {
   if(err) {

@@ -1,97 +1,320 @@
-// Sample deck data with cards from sm-cards.json
-const fs = require('fs');
-const path = require('path');
-
-// Load the SM cards data
-let smCards = [];
-try {
-  const cardsFilePath = path.join(__dirname, 'sm-cards.json');
-  if (fs.existsSync(cardsFilePath)) {
-    const cardsData = fs.readFileSync(cardsFilePath, 'utf8');
-    smCards = JSON.parse(cardsData);
-    console.log(`Loaded ${smCards.length} cards for sample decks`);
-  }
-} catch (error) {
-  console.error('Error loading SM cards for sample decks:', error.message);
-}
-
-// Helper function to get random cards of a specific type
-function getRandomCardsOfType(type, count) {
-  const typeCards = smCards.filter(card => card.types && card.types.includes(type));
-  const result = [];
-  
-  // If we don't have enough cards of this type, return what we have
-  if (typeCards.length === 0) {
-    return [{ id: 'sm1-1', count: 1 }]; // Fallback to a default card
-  }
-  
-  // Get random cards of this type
-  for (let i = 0; i < count && i < typeCards.length; i++) {
-    const randomIndex = Math.floor(Math.random() * typeCards.length);
-    const card = typeCards[randomIndex];
-    
-    // Check if we already added this card
-    const existingCard = result.find(c => c.id === card.id);
-    if (existingCard) {
-      existingCard.count = Math.min(existingCard.count + 1, 4); // Max 4 of any card
-    } else {
-      result.push({ id: card.id, count: Math.floor(Math.random() * 3) + 1 }); // 1-3 copies
-    }
-    
-    // Remove the card so we don't pick it again
-    typeCards.splice(randomIndex, 1);
-  }
-  
-  return result;
-}
-
-// Create sample decks with real SM cards
-const sampleDecks = [
+module.exports = [
   {
-    id: 1,
-    userId: 0, // Corresponds to John Doe
-    name: "John's Fire Deck",
-    imageUrl: "",
-    cards: getRandomCardsOfType('Fire', 10),
-    favorite: true,
-    lastModified: new Date().toISOString()
+    "id": 1,
+    "userId": 0,
+    "name": "John's Fire Deck",
+    "imageUrl": "",
+    "cards": [
+      {
+        "id": "sm7-29",
+        "count": 3
+      },
+      {
+        "id": "sm6-17",
+        "count": 1
+      },
+      {
+        "id": "sm5-21",
+        "count": 2
+      },
+      {
+        "id": "sm9-14",
+        "count": 3
+      },
+      {
+        "id": "sm4-13",
+        "count": 1
+      },
+      {
+        "id": "sm3-22",
+        "count": 3
+      },
+      {
+        "id": "sm3-20",
+        "count": 1
+      },
+      {
+        "id": "sm5-18",
+        "count": 3
+      },
+      {
+        "id": "sm3-25",
+        "count": 1
+      },
+      {
+        "id": "sm10-29",
+        "count": 2
+      }
+    ],
+    "favorite": true,
+    "lastModified": "2025-06-11T00:43:28.343Z"
   },
   {
-    id: 2,
-    userId: 0,
-    name: "John's Water Deck",
-    imageUrl: "",
-    cards: getRandomCardsOfType('Water', 8),
-    favorite: false,
-    lastModified: new Date(Date.now() - 86400000).toISOString() // 1 day ago
+    "id": 2,
+    "userId": 0,
+    "name": "John's Water Deck",
+    "imageUrl": "",
+    "cards": [
+      {
+        "id": "sm9-161",
+        "count": 3
+      },
+      {
+        "id": "sm3-39",
+        "count": 2
+      },
+      {
+        "id": "sm4-23",
+        "count": 2
+      },
+      {
+        "id": "sm4-29",
+        "count": 1
+      },
+      {
+        "id": "sm12-215",
+        "count": 2
+      },
+      {
+        "id": "sm2-150",
+        "count": 2
+      },
+      {
+        "id": "sm1-36",
+        "count": 2
+      },
+      {
+        "id": "sm3-30",
+        "count": 3
+      }
+    ],
+    "favorite": false,
+    "lastModified": "2025-06-10T00:43:28.344Z"
   },
   {
-    id: 3,
-    userId: 1, // Corresponds to Jane Doe
-    name: "Jane's Electric Deck",
-    imageUrl: "",
-    cards: getRandomCardsOfType('Lightning', 12),
-    favorite: true,
-    lastModified: new Date().toISOString()
+    "id": 3,
+    "userId": 1,
+    "name": "Jane's Electric Deck",
+    "imageUrl": "",
+    "cards": [
+      {
+        "id": "sm11-67",
+        "count": 3
+      },
+      {
+        "id": "sm6-36",
+        "count": 3
+      },
+      {
+        "id": "sm9-34",
+        "count": 2
+      },
+      {
+        "id": "sm11-66",
+        "count": 1
+      },
+      {
+        "id": "sm3-47",
+        "count": 3
+      },
+      {
+        "id": "sm2-135",
+        "count": 1
+      },
+      {
+        "id": "sm8-74",
+        "count": 2
+      },
+      {
+        "id": "sm8-72",
+        "count": 2
+      },
+      {
+        "id": "sm11-54",
+        "count": 2
+      },
+      {
+        "id": "sm12-242",
+        "count": 2
+      },
+      {
+        "id": "sm6-39",
+        "count": 2
+      },
+      {
+        "id": "sm7-155",
+        "count": 1
+      }
+    ],
+    "favorite": true,
+    "lastModified": "2025-06-11T00:43:28.344Z"
   },
   {
-    id: 4,
-    userId: 0,
-    name: "John's Psychic Deck",
-    imageUrl: "",
-    cards: getRandomCardsOfType('Psychic', 9),
-    favorite: true,
-    lastModified: new Date().toISOString()
+    "id": 4,
+    "userId": 0,
+    "name": "John's Psychic Deck",
+    "imageUrl": "",
+    "cards": [
+      {
+        "id": "sm4-41",
+        "count": 1
+      },
+      {
+        "id": "sm11-99",
+        "count": 1
+      },
+      {
+        "id": "sm1-153",
+        "count": 2
+      },
+      {
+        "id": "sm3-57",
+        "count": 1
+      },
+      {
+        "id": "sm8-103",
+        "count": 3
+      },
+      {
+        "id": "sm8-106",
+        "count": 2
+      },
+      {
+        "id": "sm7-69",
+        "count": 1
+      },
+      {
+        "id": "sm7-157",
+        "count": 2
+      },
+      {
+        "id": "sm5-61",
+        "count": 1
+      }
+    ],
+    "favorite": true,
+    "lastModified": "2025-06-11T00:43:28.344Z"
   },
   {
-    id: 5,
-    userId: 1,
-    name: "Jane's Grass Deck",
-    imageUrl: "",
-    cards: getRandomCardsOfType('Grass', 10),
-    favorite: false,
-    lastModified: new Date(Date.now() - 172800000).toISOString() // 2 days ago
+    "id": 5,
+    "userId": 1,
+    "name": "Jane's Grass Deck",
+    "imageUrl": "",
+    "cards": [
+      {
+        "id": "sm1-12",
+        "count": 1
+      },
+      {
+        "id": "sm5-14",
+        "count": 1
+      },
+      {
+        "id": "sm5-157",
+        "count": 2
+      },
+      {
+        "id": "sm7-15",
+        "count": 2
+      },
+      {
+        "id": "sm7-14",
+        "count": 3
+      },
+      {
+        "id": "sm3-149",
+        "count": 3
+      },
+      {
+        "id": "sm8-196",
+        "count": 1
+      },
+      {
+        "id": "sm7-4",
+        "count": 2
+      },
+      {
+        "id": "sm11-2",
+        "count": 2
+      },
+      {
+        "id": "sm3-16",
+        "count": 2
+      }
+    ],
+    "favorite": false,
+    "lastModified": "2025-06-09T00:43:28.344Z"
+  },
+  {
+    "id": 6,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T00:47:59.301Z"
+  },
+  {
+    "id": 7,
+    "userId": 0,
+    "name": "New Deck 2",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T00:48:17.090Z"
+  },
+  {
+    "id": 8,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T00:49:11.370Z"
+  },
+  {
+    "id": 9,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": true,
+    "lastModified": "2025-06-11T00:49:21.075Z"
+  },
+  {
+    "id": 10,
+    "userId": 0,
+    "name": "gelo",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": true,
+    "lastModified": "2025-06-11T00:49:40.749Z"
+  },
+  {
+    "id": 11,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T01:08:47.671Z"
+  },
+  {
+    "id": 12,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T01:08:52.536Z"
+  },
+  {
+    "id": 13,
+    "userId": 0,
+    "name": "New Deck",
+    "imageUrl": "https://images.pokemontcg.io/sm5/64.png",
+    "cards": [],
+    "favorite": false,
+    "lastModified": "2025-06-11T01:08:57.094Z"
   }
 ];
-
-module.exports = sampleDecks;
