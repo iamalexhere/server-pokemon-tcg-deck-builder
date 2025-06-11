@@ -647,17 +647,10 @@ function updateDeckImageUrl(deck, allCards) {
     if (firstCardDetails && firstCardDetails.images && firstCardDetails.images.small) {
       deck.imageUrl = firstCardDetails.images.small;
     } else {
-      // Optional: set to a default if first card has no image or not found
-      // deck.imageUrl = ''; 
+      deck.imageUrl = 'https://images.pokemontcg.io/sm1/1.png';
     }
   } else {
-    // Optional: if deck has no cards, pick a random image from all cards
-    if (allCards.length > 0) {
-      const randomCard = allCards[Math.floor(Math.random() * allCards.length)];
-      if (randomCard && randomCard.images && randomCard.images.small) {
-        deck.imageUrl = randomCard.images.small;
-      }
-    }
+    deck.imageUrl = 'https://images.pokemontcg.io/sm1/1.png';
   }
 }
 
@@ -665,7 +658,7 @@ function updateDeckImageUrl(deck, allCards) {
 app.post('/api/decks', (req, res) => {
   // Use req.user from middleware instead of verifying token again
   const userData = req.user;
-  const { name, imageUrl = '' } = req.body;
+  const { name } = req.body;
   
   // Validate input
   if (!name || typeof name !== 'string') {
@@ -686,16 +679,11 @@ app.post('/api/decks', (req, res) => {
     id: newId,
     userId: userIndex,
     name,
-    imageUrl: imageUrl,
+    imageUrl: 'https://images.pokemontcg.io/sm1/1.png', // Default image for new decks
     cards: [],
     favorite: false,
     lastModified: new Date().toISOString()
   };
-  
-  // If no imageUrl was provided, set one (will be random for a new empty deck)
-  if (!newDeck.imageUrl) {
-    updateDeckImageUrl(newDeck, cards);
-  }
   
   decks.push(newDeck);
   saveDataToFile(decksFilePath, decks);
@@ -716,20 +704,20 @@ app.put('/api/decks/:id', (req, res) => {
   // Use req.user from middleware instead of verifying token again
   const userData = req.user;
   const deckId = parseInt(req.params.id);
-  const { name, imageUrl, cards } = req.body;
-  
+  const { name, imageUrl, cards: updatedCards } = req.body; // Renamed to avoid shadowing global 'cards'
+
   // Find user index
   const userIndex = users.findIndex(u => u.username === userData.username);
   if (userIndex === -1) {
     return res.status(404).json({ message: 'User not found' });
   }
-  
+
   // Find deck index
   const deckIndex = decks.findIndex(d => d.id === deckId && d.userId === userIndex);
   if (deckIndex === -1) {
     return res.status(404).json({ message: 'Deck not found' });
   }
-  
+
   // Update deck properties
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim() === '') {
@@ -737,74 +725,74 @@ app.put('/api/decks/:id', (req, res) => {
     }
     decks[deckIndex].name = name;
   }
-  
+
   if (imageUrl !== undefined) {
     if (typeof imageUrl !== 'string') {
       return res.status(400).json({ message: 'Image URL must be a string' });
     }
     decks[deckIndex].imageUrl = imageUrl;
   }
-  
-  if (cards !== undefined) {
+
+  // This block now uses `updatedCards`
+  if (updatedCards !== undefined) {
     // Validate cards array
-    if (!Array.isArray(cards)) {
+    if (!Array.isArray(updatedCards)) {
       return res.status(400).json({ message: 'Cards must be an array' });
     }
-    
+
     // Validate each card in the array
     const invalidCards = [];
     const validCards = [];
-    
-    for (const card of cards) {
+
+    for (const card of updatedCards) {
       // Check card format
       if (!card.id || typeof card.id !== 'string' || !card.count || typeof card.count !== 'number') {
         invalidCards.push(card);
         continue;
       }
-      
+
       // Check card count range
       if (card.count < 1 || card.count > 4) {
         invalidCards.push(card);
         continue;
       }
-      
-      // Verify card exists in our database
+
+      // Verify card exists in our database (now correctly uses global `cards`)
       const cardExists = cards.some(c => c.id === card.id);
       if (!cardExists) {
         invalidCards.push(card);
         continue;
       }
-      
+
       validCards.push(card);
     }
-    
-    // If there are invalid cards, return an error
-    if (invalidCards.length > 0) {
+
+    // If validation passes, update the deck's cards
+    if (invalidCards.length === 0) {
+      decks[deckIndex].cards = validCards;
+    } else {
       return res.status(400).json({
-        message: 'Some cards are invalid',
+        message: 'Some cards in the update are invalid',
         invalidCards
       });
     }
-    
-    decks[deckIndex].cards = validCards;
-    updateDeckImageUrl(decks[deckIndex], cards);
   }
-  
+
+  console.log('--- RUNNING LATEST DECK UPDATE CODE ---');
+  // This call now correctly uses the global `cards` collection
+  updateDeckImageUrl(decks[deckIndex], cards);
+
   // Update last modified timestamp
   decks[deckIndex].lastModified = new Date().toISOString();
-  
-  // Calculate card count
-  const cardCount = decks[deckIndex].cards.reduce((total, card) => total + card.count, 0);
-  
   saveDataToFile(decksFilePath, decks);
-  
+
   res.status(200).json({
     message: 'Deck updated successfully',
     deck: {
       id: decks[deckIndex].id,
       name: decks[deckIndex].name,
       imageUrl: decks[deckIndex].imageUrl,
-      cardCount,
+      cardCount: decks[deckIndex].cards.length,
       lastModified: decks[deckIndex].lastModified
     }
   });
@@ -972,7 +960,7 @@ app.post('/api/decks/:id/cards', (req, res) => {
     // Add new card to deck
     decks[deckIndex].cards.push({ id: cardId, count });
   }
-  
+
   // Update the deck image based on the new card list
   updateDeckImageUrl(decks[deckIndex], cards);
 
