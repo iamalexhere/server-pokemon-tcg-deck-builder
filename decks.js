@@ -3,7 +3,7 @@ module.exports = [
     "id": 1,
     "userId": 0,
     "name": "John's Fire Deck",
-    "imageUrl": "",
+    "imageUrl": "https://images.pokemontcg.io/sm7/29.png",
     "cards": [
       {
         "id": "sm7-29",
@@ -53,7 +53,7 @@ module.exports = [
     "id": 2,
     "userId": 0,
     "name": "John's Water Deck",
-    "imageUrl": "",
+    "imageUrl": "https://images.pokemontcg.io/sm9/161.png",
     "cards": [
       {
         "id": "sm9-161",
@@ -95,7 +95,7 @@ module.exports = [
     "id": 3,
     "userId": 1,
     "name": "Jane's Electric Deck",
-    "imageUrl": "",
+    "imageUrl": "https://images.pokemontcg.io/sm11/67.png",
     "cards": [
       {
         "id": "sm11-67",
@@ -153,7 +153,7 @@ module.exports = [
     "id": 4,
     "userId": 0,
     "name": "John's Psychic Deck",
-    "imageUrl": "",
+    "imageUrl": "https://images.pokemontcg.io/sm4/41.png",
     "cards": [
       {
         "id": "sm4-41",
@@ -245,76 +245,4 @@ module.exports = [
     "favorite": false,
     "lastModified": "2025-06-09T00:43:28.344Z"
   },
-  {
-    "id": 6,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T00:47:59.301Z"
-  },
-  {
-    "id": 7,
-    "userId": 0,
-    "name": "New Deck 2",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T00:48:17.090Z"
-  },
-  {
-    "id": 8,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T00:49:11.370Z"
-  },
-  {
-    "id": 9,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": true,
-    "lastModified": "2025-06-11T00:49:21.075Z"
-  },
-  {
-    "id": 10,
-    "userId": 0,
-    "name": "gelo",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": true,
-    "lastModified": "2025-06-11T00:49:40.749Z"
-  },
-  {
-    "id": 11,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T01:08:47.671Z"
-  },
-  {
-    "id": 12,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T01:08:52.536Z"
-  },
-  {
-    "id": 13,
-    "userId": 0,
-    "name": "New Deck",
-    "imageUrl": "https://images.pokemontcg.io/sm5/64.png",
-    "cards": [],
-    "favorite": false,
-    "lastModified": "2025-06-11T01:08:57.094Z"
-  }
 ];

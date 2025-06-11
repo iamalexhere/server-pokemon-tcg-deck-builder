@@ -258,47 +258,6 @@ app.get('/api/cards/set/:setId', (req, res) => {
   });
 });
 
-// Search cards endpoint
-// app.get('/api/cards/search', (req, res) => {
-//   const { name, type, supertype, rarity } = req.query;
-  
-//   // Filter cards based on search criteria
-//   let filteredCards = [...cards];
-  
-//   if (name) {
-//     const searchName = name.toLowerCase();
-//     filteredCards = filteredCards.filter(card => 
-//       card.name && card.name.toLowerCase().includes(searchName)
-//     );
-//   }
-  
-//   if (type) {
-//     const searchType = type.toLowerCase();
-//     filteredCards = filteredCards.filter(card => 
-//       card.types && card.types.some(t => t.toLowerCase().includes(searchType))
-//     );
-//   }
-  
-//   if (supertype) {
-//     const searchSupertype = supertype.toLowerCase();
-//     filteredCards = filteredCards.filter(card => 
-//       card.supertype && card.supertype.toLowerCase().includes(searchSupertype)
-//     );
-//   }
-  
-//   if (rarity) {
-//     const searchRarity = rarity.toLowerCase();
-//     filteredCards = filteredCards.filter(card => 
-//       card.rarity && card.rarity.toLowerCase().includes(searchRarity)
-//     );
-//   }
-  
-//   res.status(200).json({
-//     data: filteredCards,
-//     count: filteredCards.length
-//   });
-// });
-
 // Get card by ID endpoint
 app.get('/api/cards/:id', (req, res) => {
   const cardId = req.params.id;
