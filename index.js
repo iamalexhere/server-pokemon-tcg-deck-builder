@@ -242,21 +242,6 @@ app.get('/api/cards', (req, res) => {
   });
 });
 
-// Get cards by set endpoint
-app.get('/api/cards/set/:setId', (req, res) => {
-  const setId = req.params.setId.toLowerCase();
-  
-  // Filter cards by set ID
-  const setCards = cards.filter(card => 
-    card.set && card.set.id && card.set.id.toLowerCase() === setId
-  );
-  
-  res.status(200).json({
-    data: setCards,
-    count: setCards.length,
-    set: setId
-  });
-});
 
 // Get card by ID endpoint
 app.get('/api/cards/:id', (req, res) => {
@@ -825,63 +810,6 @@ app.delete('/api/decks/:id', (req, res) => {
   });
 });
 
-// Get Recent Decks endpoint
-app.get('/api/decks/recent', (req, res) => {
-  const userData = verify(req.headers.authorization);
-  
-  // Find user index
-  const userIndex = users.findIndex(u => u.username === userData.username);
-  if (userIndex === -1) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-  
-  // Get user's decks and sort by last modified date
-  const userDecks = decks
-    .filter(deck => deck.userId === userIndex)
-    .sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified))
-    .slice(0, 3); // Get top 3 most recent
-  
-  // Format decks for response
-  const formattedDecks = userDecks.map(deck => ({
-    id: deck.id,
-    name: deck.name,
-    imageUrl: deck.imageUrl,
-    cardCount: deck.cards.reduce((total, card) => total + card.count, 0)
-  }));
-  
-  res.status(200).json({
-    decks: formattedDecks
-  });
-});
-
-// Get Favorite Decks endpoint
-app.get('/api/decks/favorites', (req, res) => {
-  const userData = verify(req.headers.authorization);
-  
-  // Find user index
-  const userIndex = users.findIndex(u => u.username === userData.username);
-  if (userIndex === -1) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-  
-  // Get user's favorite decks
-  const userDecks = decks
-    .filter(deck => deck.userId === userIndex && deck.favorite)
-    .slice(0, 6); // Get up to 6 favorite decks
-  
-  // Format decks for response
-  const formattedDecks = userDecks.map(deck => ({
-    id: deck.id,
-    name: deck.name,
-    imageUrl: deck.imageUrl,
-    cardCount: deck.cards.reduce((total, card) => total + card.count, 0)
-  }));
-  
-  res.status(200).json({
-    decks: formattedDecks
-  });
-});
-
 // Add/Remove Favorite Deck endpoint
 app.post('/api/decks/:id/favorite', (req, res) => {
   // Use req.user from middleware instead of verifying token again
@@ -1070,8 +998,6 @@ app.put('/api/decks/:id/cards/:cardId', (req, res) => {
     }
   });
 });
-
-
 
 app.listen(3001, (err) => {
   if(err) {
