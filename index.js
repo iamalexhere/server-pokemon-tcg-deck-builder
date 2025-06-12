@@ -725,6 +725,12 @@ app.put('/api/decks/:id', (req, res) => {
       return res.status(400).json({ message: 'Cards must be an array' });
     }
 
+    // Check total number of cards doesn't exceed 60
+    const totalCards = updatedCards.reduce((sum, card) => sum + card.count, 0);
+    if (totalCards > 60) {
+      return res.status(400).json({ message: 'Deck cannot contain more than 60 cards total' });
+    }
+
     // Validate each card in the array
     const invalidCards = [];
     const validCards = [];
@@ -736,15 +742,16 @@ app.put('/api/decks/:id', (req, res) => {
         continue;
       }
 
-      // Check card count range
-      if (card.count < 1 || card.count > 4) {
+      // Verify card exists in our database and check if it's an Energy card
+      const cardData = cards.find(c => c.id === card.id);
+      if (!cardData) {
         invalidCards.push(card);
         continue;
       }
 
-      // Verify card exists in our database (now correctly uses global `cards`)
-      const cardExists = cards.some(c => c.id === card.id);
-      if (!cardExists) {
+      // Check card count range - Energy cards have no upper limit, other cards limited to 4
+      const isEnergyCard = cardData.supertype === 'Energy';
+      if (card.count < 1 || (!isEnergyCard && card.count > 4)) {
         invalidCards.push(card);
         continue;
       }
