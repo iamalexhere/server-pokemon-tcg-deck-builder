@@ -856,8 +856,21 @@ app.post('/api/decks/:id/cards', (req, res) => {
     return res.status(400).json({ message: 'Card ID is required' });
   }
   
-  if (count < 1 || count > 4) {
-    return res.status(400).json({ message: 'Card count must be between 1 and 4' });
+  // Find the card to check if it's an Energy card
+  const cardData = cards.find(c => c.id === cardId);
+  if (!cardData) {
+    return res.status(404).json({ message: 'Card not found in database' });
+  }
+  
+  const isEnergyCard = cardData.supertype === 'Energy';
+  
+  // For Energy cards, only check the minimum count (1), but no maximum limit
+  // For other cards, enforce the 1-4 limit
+  if (count < 1 || (!isEnergyCard && count > 4)) {
+    const message = isEnergyCard 
+      ? 'Energy card count must be at least 1' 
+      : 'Card count must be between 1 and 4';
+    return res.status(400).json({ message });
   }
   
   // Find user index
@@ -872,6 +885,19 @@ app.post('/api/decks/:id/cards', (req, res) => {
     return res.status(404).json({ message: 'Deck not found' });
   }
   
+  // Check if adding this card would exceed the maximum deck size (60 cards)
+  const MAX_DECK_CARDS = 60;
+  const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
+  
+  // Calculate new total cards in the deck
+  const currentTotalCards = decks[deckIndex].cards.reduce((total, card) => total + card.count, 0);
+  const cardDifference = cardIndex !== -1 ? count - decks[deckIndex].cards[cardIndex].count : count;
+  const newTotalCards = currentTotalCards + cardDifference;
+  
+  if (newTotalCards > MAX_DECK_CARDS) {
+    return res.status(400).json({ message: `Deck cannot contain more than ${MAX_DECK_CARDS} cards total.` });
+  }
+
   // Verify card exists in our database
   const cardExists = cards.some(c => c.id === cardId);
   if (!cardExists) {
@@ -879,8 +905,6 @@ app.post('/api/decks/:id/cards', (req, res) => {
   }
   
   // Check if card already exists in deck
-  const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
-  
   if (cardIndex !== -1) {
     // Update existing card count
     decks[deckIndex].cards[cardIndex].count = count;
@@ -957,8 +981,20 @@ app.put('/api/decks/:id/cards/:cardId', (req, res) => {
   const { count } = req.body;
   
   // Validate input
-  if (count === undefined || count < 1 || count > 4) {
-    return res.status(400).json({ message: 'Card count must be between 1 and 4' });
+  // Find the card to check if it's an Energy card
+  const cardData = cards.find(c => c.id === cardId);
+  if (!cardData) {
+    return res.status(404).json({ message: 'Card not found in database' });
+  }
+  
+  const isEnergyCard = cardData.supertype === 'Energy';
+  
+  // Energy cards only need to satisfy minimum count, no maximum limit
+  if (count === undefined || count < 1 || (!isEnergyCard && count > 4)) {
+    const message = isEnergyCard 
+      ? 'Energy card count must be at least 1' 
+      : 'Card count must be between 1 and 4';
+    return res.status(400).json({ message });
   }
   
   // Find user index
@@ -977,6 +1013,16 @@ app.put('/api/decks/:id/cards/:cardId', (req, res) => {
   const cardIndex = decks[deckIndex].cards.findIndex(c => c.id === cardId);
   if (cardIndex === -1) {
     return res.status(404).json({ message: 'Card not found in deck' });
+  }
+  
+  // Check if updating the card count would exceed the maximum deck size (60 cards)
+  const MAX_DECK_CARDS = 60;
+  const currentTotalCards = decks[deckIndex].cards.reduce((total, card) => total + card.count, 0);
+  const cardDifference = count - decks[deckIndex].cards[cardIndex].count;
+  const newTotalCards = currentTotalCards + cardDifference;
+  
+  if (newTotalCards > MAX_DECK_CARDS) {
+    return res.status(400).json({ message: `Deck cannot contain more than ${MAX_DECK_CARDS} cards total.` });
   }
   
   // Update card count
